@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:notewithme/constants/routes.dart';
+import 'package:notewithme/utilities/show_error_dialog.dart';
 import 'dart:developer' as devtools show log;
 
 import '../firebase_options.dart';
@@ -82,17 +83,39 @@ class _RegisterViewState extends State<RegisterView> {
                           email: email,
                           password: password,
                         );
+                        final user = FirebaseAuth.instance.currentUser;
+                        await user?.sendEmailVerification();
+                        Navigator.of(context).pushNamed(verifyEmailRoute);
                         devtools.log(userCredential.toString());
                       } on FirebaseAuthException catch (e) {
                         if (e.code == "weak-password") {
+                          await showErrorDialog(
+                            context,
+                            "Weak Password",
+                          );
                           devtools.log("!weak password");
                         } else if (e.code == "email-already-in-use") {
+                          await showErrorDialog(
+                            context,
+                            "Email already in use",
+                          );
                           devtools.log("!email already in use");
                         } else if (e.code == "invalid-email") {
+                          await showErrorDialog(
+                            context,
+                            "Invalid email address",
+                          );
                           devtools.log("!invalid email");
                         } else {
+                          await showErrorDialog(context,
+                              "Something bad happened while registering. Sorry :(");
                           devtools.log("!Something bad happened in auth");
                         }
+                      } catch (e) {
+                        await showErrorDialog(
+                          context,
+                          "Something bad happened and maybe this will help: ${e.toString()}",
+                        );
                       }
                     }),
                     child: const Text("Register Button"),

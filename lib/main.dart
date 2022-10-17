@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:notewithme/constants/routes.dart';
 import 'package:notewithme/views/login_view.dart';
 import 'package:notewithme/views/register_view.dart';
+import 'package:notewithme/views/verify_email_view.dart';
 import 'dart:developer' as devtools show log;
 import 'firebase_options.dart';
 
@@ -20,6 +21,7 @@ void main() {
           notesRoute: (context) => const NotesView(),
           loginRoute: (context) => const LoginView(),
           registerRoute: (context) => const RegisterView(),
+          verifyEmailRoute: (context) => const VerifyEmailView(),
         }),
   );
 }
@@ -61,7 +63,7 @@ class HomePage extends StatelessWidget {
             }
             if (isVerifiedMsg == "Verified") {
               // return Text(isVerifiedMsg);
-              return NotesView();
+              return const NotesView();
               //go in
             } else {
               //gonna add a notifier
