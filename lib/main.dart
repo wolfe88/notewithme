@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:notewithme/constants/routes.dart';
-import 'package:notewithme/services/auth/auth_provider.dart';
 import 'package:notewithme/services/auth/auth_service.dart';
 import 'package:notewithme/views/login_view.dart';
 import 'package:notewithme/views/notes_view.dart';
 import 'package:notewithme/views/register_view.dart';
 import 'package:notewithme/views/verify_email_view.dart';
-import 'dart:developer' as devtools show log;
-import 'firebase_options.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
