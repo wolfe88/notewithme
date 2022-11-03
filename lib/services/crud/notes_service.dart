@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' show join;
 import 'package:path_provider/path_provider.dart';
@@ -8,12 +10,46 @@ import 'crud_exceptions.dart';
 class NotesService {
   Database? _db;
 
+  List<DatabaseNote> _notes = [];
+
+  static final NotesService _shared = NotesService._sharedInstance();
+  NotesService._sharedInstance();
+
+  factory NotesService() => _shared;
+
+  final _notesStreamController =
+      StreamController<List<DatabaseNote>>.broadcast();
+
+  Stream<List<DatabaseNote>> get allNotes => _notesStreamController.stream;
+
+  Future<DatabaseUser> getOrCreateUser({required String mail}) async {
+    try {
+      final user = await getUser(email: mail);
+      return user;
+    } on CouldNotFindUser {
+      final createdUser = await createUser(email: mail);
+      return createdUser;
+    } catch (e) {
+      rethrow; // just for debugging and breakpoint
+    }
+  }
+
+  Future<void> _cacheNotes() async {
+    final allNotes = await getAllNotes();
+    _notes = allNotes.toList();
+    _notesStreamController.add(_notes);
+  }
+
   Future<DatabaseNote> updateNote(
       {required DatabaseNote note, required String text}) async {
+    await _ensureDbIsOpen();
+
     final db = _getDataBaseOrThrow();
+    //there isn't enogh exception handling. look afterwards
 
+    //make sure note exists
     await getNote(id: note.id);
-
+    //update DB
     final updatesCount = await db.update(noteTable, {
       textColumn: text,
       isSyncdWithCloudColumn: 0,
@@ -22,11 +58,17 @@ class NotesService {
     if (updatesCount == 0) {
       throw CouldNotUpdateNote();
     } else {
-      return await getNote(id: note.id);
+      final updatedNote = await getNote(id: note.id);
+      _notes.removeWhere((note) => note.id == updatedNote.id);
+      _notes.add(updatedNote);
+      _notesStreamController.add(_notes);
+      return updatedNote;
     }
   }
 
   Future<Iterable<DatabaseNote>> getAllNotes() async {
+    await _ensureDbIsOpen();
+
     final db = _getDataBaseOrThrow();
     final notes = await db.query(
       noteTable,
@@ -36,6 +78,8 @@ class NotesService {
   }
 
   Future<DatabaseNote> getNote({required int id}) async {
+    await _ensureDbIsOpen();
+
     final db = _getDataBaseOrThrow();
     final notes = await db.query(
       noteTable,
@@ -47,16 +91,28 @@ class NotesService {
     if (notes.isEmpty) {
       throw CouldNotFindNote;
     } else {
-      return DatabaseNote.fromRow(notes.first);
+      final note = DatabaseNote.fromRow(notes.first);
+      _notes.removeWhere((notes) => note.id == id);
+      _notes.add(note);
+      _notesStreamController.add(_notes);
+      return note;
     }
   }
 
   Future<int> deleteAllNotes() async {
+    await _ensureDbIsOpen();
+
     final db = _getDataBaseOrThrow();
-    return await db.delete(noteTable);
+    // _notes.removeRange(0, _notes.length); thats just an idea
+    final numberOfDeletions = await db.delete(noteTable);
+    _notes = [];
+    _notesStreamController.add(_notes);
+    return numberOfDeletions;
   }
 
   Future<void> deleteNote({required int id}) async {
+    await _ensureDbIsOpen();
+
     final db = _getDataBaseOrThrow();
     final deletedCount = await db.delete(
       userTable,
@@ -66,10 +122,15 @@ class NotesService {
 
     if (deletedCount == 0) {
       throw CouldNotDeleteNote();
+    } else {
+      _notes.removeWhere((note) => note.id == id);
+      _notesStreamController.add(_notes);
     }
   }
 
   Future<DatabaseNote> createNote({required DatabaseUser owner}) async {
+    await _ensureDbIsOpen();
+
     final db = _getDataBaseOrThrow();
     final dbUser = await getUser(email: owner.email);
     if (dbUser != owner) {
@@ -82,7 +143,7 @@ class NotesService {
       userIdColumn: owner.id,
       textColumn: text,
       isSyncdWithCloudColumn:
-          1, //why is here 1? we did access the database but thats local???
+          1, //why is here 1? yes, we did access the database but thats local???
     });
 
     final note = DatabaseNote(
@@ -92,10 +153,20 @@ class NotesService {
       isSnycdWithCloud: true,
     );
 
+    //not enough exception handling to be honest. look here another time
+
+    _notes.add(note);
+    _notesStreamController
+        .add(_notes); //isn't this causing the duplicating of all the notes??
+
+    //do i have to cache again???????? i guess i should cache in the usage part of the code
+
     return note;
   }
 
   Future<DatabaseUser> getUser({required String email}) async {
+    await _ensureDbIsOpen();
+
     final db = _getDataBaseOrThrow();
     final results = await db.query(
       userTable,
@@ -111,6 +182,8 @@ class NotesService {
   }
 
   Future<DatabaseUser> createUser({required String email}) async {
+    await _ensureDbIsOpen();
+
     //i guess if user already exists is wrong
     final db = _getDataBaseOrThrow();
     final results = await db.query(
@@ -131,6 +204,7 @@ class NotesService {
   }
 
   Future<void> deleteUser({required String email}) async {
+    await _ensureDbIsOpen();
     final db = _getDataBaseOrThrow();
     final deletedCount = await db.delete(
       userTable,
@@ -162,6 +236,14 @@ class NotesService {
     }
   }
 
+  Future<void> _ensureDbIsOpen() async {
+    try {
+      await open();
+    } on DatabaseAlreadyOpenException {
+      //empty
+    }
+  }
+
   Future<void> open() async {
     if (_db != null) {
       throw DatabaseAlreadyOpenException();
@@ -175,6 +257,7 @@ class NotesService {
       await db.execute(createUserTable);
 
       await db.execute(createNoteTable);
+      await _cacheNotes();
     } on MissingPlatformDirectoryException {
       throw UnableToGetDocumentsDirectory;
     }
