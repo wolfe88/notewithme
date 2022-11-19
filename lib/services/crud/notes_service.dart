@@ -12,24 +12,32 @@ class NotesService {
 
   List<DatabaseNote> _notes = [];
 
+  DatabaseUser? user;
+
   static final NotesService _shared = NotesService._sharedInstance();
-  NotesService._sharedInstance();
+  NotesService._sharedInstance() {
+    _notesStreamController = StreamController<List<DatabaseNote>>.broadcast(
+      onListen: () {
+        _notesStreamController.sink.add(_notes);
+      },
+    );
+  }
 
   factory NotesService() => _shared;
 
-  final _notesStreamController =
-      StreamController<List<DatabaseNote>>.broadcast();
+  late final StreamController<List<DatabaseNote>> _notesStreamController;
 
   Stream<List<DatabaseNote>> get allNotes => _notesStreamController.stream;
 
-  Future<DatabaseUser> getOrCreateUser({required String mail}) async {
+  Future<DatabaseUser> getOrCreateUser({required String email}) async {
     try {
-      final user = await getUser(email: mail);
+      final user = await getUser(email: email);
       return user;
     } on CouldNotFindUser {
-      final createdUser = await createUser(email: mail);
+      final createdUser = await createUser(email: email);
       return createdUser;
     } catch (e) {
+      // return DatabaseUser(id: 0, email: 'null');
       rethrow; // just for debugging and breakpoint
     }
   }
@@ -83,7 +91,7 @@ class NotesService {
     final db = _getDataBaseOrThrow();
     final notes = await db.query(
       noteTable,
-      where: "id = ?",
+      where: 'id = ?',
       whereArgs: [id],
       limit: 1,
     );
@@ -115,8 +123,8 @@ class NotesService {
 
     final db = _getDataBaseOrThrow();
     final deletedCount = await db.delete(
-      userTable,
-      where: "id = ?",
+      noteTable,
+      where: 'id = ?',
       whereArgs: [id],
     );
 
@@ -150,7 +158,7 @@ class NotesService {
       id: noteId,
       userId: owner.id,
       text: text,
-      isSnycdWithCloud: true,
+      isSyncdWithCloud: true,
     );
 
     //not enough exception handling to be honest. look here another time
@@ -171,7 +179,7 @@ class NotesService {
     final results = await db.query(
       userTable,
       limit: 1,
-      where: "email = ?",
+      where: 'email = ?',
       whereArgs: [email.toLowerCase()],
     );
     if (results.isEmpty) {
@@ -189,7 +197,7 @@ class NotesService {
     final results = await db.query(
       userTable,
       limit: 1,
-      where: "email = ?",
+      where: 'email = ?',
       whereArgs: [email.toLowerCase()],
     );
     if (results.isNotEmpty) {
@@ -208,7 +216,7 @@ class NotesService {
     final db = _getDataBaseOrThrow();
     final deletedCount = await db.delete(
       userTable,
-      where: "email = ?",
+      where: 'email = ?',
       whereArgs: [email.toLowerCase()],
     );
 
@@ -254,12 +262,12 @@ class NotesService {
       final db = await openDatabase(dbPath);
       _db = db;
 
-      await db.execute(createUserTable);
+      await db.execute(createUserTable); // this is the problem
 
       await db.execute(createNoteTable);
       await _cacheNotes();
     } on MissingPlatformDirectoryException {
-      throw UnableToGetDocumentsDirectory;
+      throw UnableToGetDocumentsDirectory();
     }
   }
 }
@@ -279,7 +287,7 @@ class DatabaseUser {
         email = map[emailColumn] as String;
 
   @override
-  String toString() => "Person, ID = $id, Email = $email";
+  String toString() => 'Person, ID = $id, Email = $email';
 
   @override
   bool operator ==(covariant DatabaseUser other) => id == other.id;
@@ -292,25 +300,25 @@ class DatabaseNote {
   final int id;
   final int userId;
   final String text;
-  final bool isSnycdWithCloud;
+  final bool isSyncdWithCloud;
 
   DatabaseNote({
     required this.id,
     required this.userId,
     required this.text,
-    required this.isSnycdWithCloud,
+    required this.isSyncdWithCloud,
   });
 
   DatabaseNote.fromRow(Map<String, Object?> map)
       : id = map[idColumn] as int,
         userId = map[userIdColumn] as int,
         text = map[textColumn] as String,
-        isSnycdWithCloud =
+        isSyncdWithCloud =
             (map[isSyncdWithCloudColumn] as int) == 1 ? true : false;
 
   @override
   String toString() =>
-      "Note, ID = $id, userId = $userId, isSyncdWithCloud = $isSnycdWithCloud ";
+      'Note, ID = $id, userId = $userId, isSyncdWithCloud = $isSyncdWithCloud ';
 
   @override
   bool operator ==(covariant DatabaseNote other) => id == other.id;
@@ -319,24 +327,24 @@ class DatabaseNote {
   int get hashCode => id.hashCode;
 }
 
-const dbName = "notes.db";
-const noteTable = "notes";
-const userTable = "user";
-const idColumn = "id";
-const emailColumn = "email";
-const userIdColumn = "user_id";
-const textColumn = "text";
-const isSyncdWithCloudColumn = "is_syncd_with_cloud";
-const createUserTable = '''CREATE TABLE IF NOT EXISTS "user" (
-    "id"	INTEGER NOT NULL,
-    "email"	TEXT NOT NULL UNIQUE,
-    PRIMARY KEY("id" AUTOINCREMENT)
+const dbName = 'notes.db';
+const noteTable = 'note';
+const userTable = 'user';
+const idColumn = 'id';
+const emailColumn = 'email';
+const userIdColumn = 'user_id';
+const textColumn = 'text';
+const isSyncdWithCloudColumn = 'is_syncd_with_cloud';
+const createUserTable = '''CREATE TABLE IF NOT EXISTS 'user' (
+    'id'	INTEGER NOT NULL,
+    'email'	TEXT NOT NULL UNIQUE,
+    PRIMARY KEY('id' AUTOINCREMENT)
   );''';
-const createNoteTable = '''CREATE TABLE IF NOT EXISTS "note" (
-    "id"	INTEGER NOT NULL,
-    "user_id"	INTEGER NOT NULL,
-    "text"	INTEGER,
-    "is_syncd_with_cloud"	INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY("user_id") REFERENCES "user"("id"),
-    PRIMARY KEY("id" AUTOINCREMENT)
-  );''';
+const createNoteTable = '''CREATE TABLE IF NOT EXISTS 'note' (
+	'id'	INTEGER NOT NULL,
+	'user_id'	INTEGER NOT NULL,
+	'text'	TEXT,
+	'is_syncd_with_cloud'	INTEGER NOT NULL DEFAULT 0,
+	FOREIGN KEY('user_id') REFERENCES 'user'('id'),
+	PRIMARY KEY('id' AUTOINCREMENT)
+);''';

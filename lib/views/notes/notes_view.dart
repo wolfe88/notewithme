@@ -23,11 +23,11 @@ class _NotesViewState extends State<NotesView> {
     super.initState();
   }
 
-  @override
-  void dispose() {
-    _notesService.close();
-    super.dispose();
-  }
+  // @override
+  // void dispose() {
+  //   _notesService.close();
+  //   super.dispose();
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +49,7 @@ class _NotesViewState extends State<NotesView> {
                   devtools.log(shouldLogout.toString());
                   if (shouldLogout) {
                     await AuthService.firebase().logOut();
+                    // if (mounted) {} this is for buildcontexts async gaps. look for that another time
                     Navigator.of(context).pushNamedAndRemoveUntil(
                       loginRoute,
                       (_) => false,
@@ -70,30 +71,27 @@ class _NotesViewState extends State<NotesView> {
         ],
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.abc_outlined),
+          icon: const Icon(Icons.abc_outlined),
           onPressed: () {},
         ),
       ),
       body: FutureBuilder(
-        future: _notesService.getOrCreateUser(mail: userEmail),
+        future: _notesService.getOrCreateUser(email: userEmail),
         builder: (context, snapshot) {
           switch (snapshot.connectionState) {
-            // case ConnectionState.none:
-            //   // TODO: Handle this case.
-            //   break;
-            // case ConnectionState.waiting:
-            //   // TODO: Handle this case.
-            //   break;
-            // case ConnectionState.active:
-            //   // TODO: Handle this case.
-            //   break;
             case ConnectionState.done:
               return StreamBuilder(
                 stream: _notesService.allNotes,
                 builder: (context, snapshot) {
                   switch (snapshot.connectionState) {
                     case ConnectionState.waiting:
-                      return Text("Waiting for notes to load...");
+                    case ConnectionState.active:
+                      if (snapshot.hasData) {
+                        final allNotes = snapshot.data as List<DatabaseNote>;
+                        return const Text("Got all the notes");
+                      } else {
+                        return CircularProgressIndicator();
+                      }
                     default:
                       return const CircularProgressIndicator();
                   }

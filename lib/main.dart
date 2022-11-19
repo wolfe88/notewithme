@@ -61,31 +61,31 @@ class HomePage extends StatelessWidget {
             }
             if (isVerifiedMsg == "Verified") {
               // return Text(isVerifiedMsg);
-              return NotesView();
+              return const NotesView();
               //go in
             } else {
               //gonna add a notifier
               return const LoginView();
             }
-            // final emailVerified = user?.emailVerified ??
-            //     false; // if user is null emailVerified = false
-            // if (emailVerified) {
-            //   print("!verified");
-            // } else {
-            //   print("!not verified");
-            //   Future.delayed(
-            //     Duration.zero,
-            //     (() {
-            //       Navigator.push(
-            //         context,
-            //         MaterialPageRoute(
-            //           builder: (context) => const VerifyEmailView(),
-            //         ),
-            //       );
-            //     }),
-            //   );
-            // }
-            return const LoginView();
+          // final emailVerified = user?.emailVerified ??
+          //     false; // if user is null emailVerified = false
+          // if (emailVerified) {
+          //   print("!verified");
+          // } else {
+          //   print("!not verified");
+          //   Future.delayed(
+          //     Duration.zero,
+          //     (() {
+          //       Navigator.push(
+          //         context,
+          //         MaterialPageRoute(
+          //           builder: (context) => const VerifyEmailView(),
+          //         ),
+          //       );
+          //     }),
+          //   );
+          // }
+          // return const LoginView();
           default:
             return const Text("Loading..");
         }
